@@ -1,0 +1,5 @@
+venv
+src*
+!src/schrodinger.py
+!src/utils.py
+libs
