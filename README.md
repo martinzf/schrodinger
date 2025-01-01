@@ -90,7 +90,8 @@ $$
 
 $$
 \begin{pmatrix}
-A\\ B
+A\\ 
+B
 \end{pmatrix}=
 \frac{1}{6(x_2-x_1)}
 \begin{pmatrix}
@@ -105,7 +106,8 @@ $$
 
 $$
 \begin{pmatrix}
-C\\ D
+C\\ 
+D
 \end{pmatrix}=
 \frac{1}{x_2-x_1}
 \begin{pmatrix}
