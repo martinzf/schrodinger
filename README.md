@@ -65,7 +65,7 @@ Additionally, for Dirichlet boundary conditions, we can calculate solutions more
 
 $$
 \begin{cases}
-\psi\bigr\vert_{x=x_1(t)}=f_1(t) \\[.5em]
+\psi\bigr\vert_{x=x_1(t)}=f_1(t) \\
 \psi\bigr\vert_{x=x_2(t)}=f_2(t)
 \end{cases}
 $$
@@ -90,30 +90,30 @@ $$
 
 $$
 \begin{pmatrix}
-A\\[.5em] B
+A\\ B
 \end{pmatrix}=
 \frac{1}{6(x_2-x_1)}
 \begin{pmatrix}
--1 & 1\\[.5em]
+-1 & 1\\
 3x_2 & -3x_1
 \end{pmatrix}
 \begin{pmatrix}
-(V\bigr\vert_{x_1}-i\partial_t)f_1\\[.5em]
+(V\bigr\vert_{x_1}-i\partial_t)f_1\\
 (V\bigr\vert_{x_2}-i\partial_t)f_2
 \end{pmatrix}
 $$
 
 $$
 \begin{pmatrix}
-C\\[.5em] D
+C\\ D
 \end{pmatrix}=
 \frac{1}{x_2-x_1}
 \begin{pmatrix}
--1 & 1\\[.5em]
+-1 & 1\\
 x_2 & -x_1
 \end{pmatrix}
 \begin{pmatrix}
-f_1-Ax_1^3-Bx_1^2\\[.5em]
+f_1-Ax_1^3-Bx_1^2\\
 f_2-Ax_2^3-Bx_2^2
 \end{pmatrix}
 $$
