@@ -1,7 +1,2 @@
 venv
-schrodinger*
-!schrodinger/__init__.py
-!schrodinger/solver.py
-!schrodinger/utils.py
-!schrodinger/visuals.py
-!schrodinger/wavefunction.py
+schrodinger/__pycache__
