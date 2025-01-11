@@ -19,7 +19,7 @@ Particle in a growing box, $n=3$
 
 3. Run the command `pip install -r requirements.txt` to install dependencies.
 
-The modules in `src` should now work, and you should be able to use the `examples.ipynb` notebook.
+The modules in `schrodinger/` should now work, and you should be able to use the notebooks in the `examples/` folder.
 
 ### Theory 
 

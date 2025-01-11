@@ -1,5 +1,7 @@
 venv
-src*
-!src/schrodinger.py
-!src/utils.py
-libs
+schrodinger*
+!schrodinger/__init__.py
+!schrodinger/solver.py
+!schrodinger/utils.py
+!schrodinger/visuals.py
+!schrodinger/wavefunction.py
