@@ -39,7 +39,7 @@ def solve(psi0, t, x1, x2, V, BC, f=None, imag=False):
     # Complexification of (t, x)
     t += 0j
     if imag:
-        t *= 1j
+        t *= - 1j
     dt = np.concatenate(([0], np.diff(t)))
     def x(t):
         return np.linspace(x1(t), x2(t), Nx)+0j
@@ -80,7 +80,7 @@ def solve(psi0, t, x1, x2, V, BC, f=None, imag=False):
         dE.append(dE_i)
 
     if imag:
-        t *= -1j
+        t *= 1j
     t = t.real
-    sol = wavefunction.Wavefunction(psi, t, x1, x2, V, E, dE)
+    sol = wavefunction.Wavefunction(psi, t, x1, x2, E, dE)
     return sol

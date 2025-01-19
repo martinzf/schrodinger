@@ -18,7 +18,6 @@ class Wavefunction:
     t:         np.ndarray
     x1:        Callable[[float], float]
     x2:        Callable[[float], float]
-    V:         Callable
     E:         np.ndarray
     dE:        np.ndarray
 
