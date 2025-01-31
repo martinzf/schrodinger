@@ -20,10 +20,8 @@ matplotlib.rcParams.update({
 
 
 # 3D PLOT QUALITY
-# - Downsampling number of wavefunction datapoints by factor 1 / FACTOR
-# - Maximum grid points = MAXGRID
-FACTOR = 4
-MAXGRID = 100
+FACTOR = 4       # Downsampling number of wavefunction datapoints by factor 1 / FACTOR
+MAXGRID = 100    # Maximum grid points
 
 # WAVEFUNCTION COLOURMAP
 CMAP = 'hsv'
@@ -125,8 +123,11 @@ def animate_wf(wf):
     fig, ax = plt.subplots()
     ax.set_xlabel('x')
     ax.set_ylabel(r'$|\psi|$')
-    title = ax.text(.02, .95, '', bbox={'facecolor':'w', 'alpha':0.5, 'pad':5},
-                    transform=ax.transAxes, ha='left')
+    title = ax.text(
+        .02, .95, '',
+        bbox={'facecolor':'w', 'alpha':0.5, 'pad':5},
+        transform=ax.transAxes, ha='left'
+    )
     xmin = np.min(np.vectorize(wf.x1)(wf.t))
     xmax = np.max(np.vectorize(wf.x2)(wf.t))
     ymax = 1.1 * np.max(np.abs(wf.amplitude))
@@ -143,6 +144,9 @@ def animate_wf(wf):
         update_colored_line(lc, x, wf.amplitude[i])
         update_fill(left_shade, [xmin, x[0]], [0, 0], [ymax, ymax])
         update_fill(right_shade, [x[-1], xmax], [0, 0], [ymax, ymax])
-        title.set_text(rf't={wf.t[i]:.2f}, E={wf.E[i]:.2f}$\pm${wf.dE[i]:.2f}')
+        if wf.closed:
+            title.set_text(rf't={wf.t[i]:.2f}, E={wf.E[i]:.2f}$\pm${wf.dE[i]:.2f}')
+        else:
+            pass
         return lc, left_shade, right_shade, title,
     return animation.FuncAnimation(fig, fun, frames=Nt, interval=50, blit=True)

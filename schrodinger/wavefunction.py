@@ -9,6 +9,7 @@ from jax import vmap
 import numpy as np
 
 from . import visuals
+from . import utils
 
 @dataclass
 class Wavefunction:
@@ -18,11 +19,15 @@ class Wavefunction:
     t:         np.ndarray
     x1:        Callable[[float], float]
     x2:        Callable[[float], float]
-    E:         np.ndarray
-    dE:        np.ndarray
+    V:         Callable[[float, np.ndarray], np.ndarray]
+    closed:    bool = True
 
     def __post_init__(self):
-        self._normalize()
+        x = self._x(self.t)
+        V = self.V(self.t, x)
+        if self.closed:
+            self._normalize()
+            self.E, self.dE = utils.energy(self.amplitude, x, V)
 
     def _x(self, t):
         Nx = self.amplitude.shape[1]
@@ -42,7 +47,10 @@ class Wavefunction:
                 raise ValueError(f"'t' value outside of range [{self.t[0]:.2f}, {self.t[-1]:.2f}]")
             i = np.argmin(np.abs(self.t - t))
             x = np.linspace(self.x1(self.t[i]), self.x2(self.t[i]), Nx)
-            title = rf't={self.t[i]:.2f}, E={self.E[i]:.2f}$\pm${self.dE[i]:.2f}'
+            if self.closed:
+                title = rf't={self.t[i]:.2f}, E={self.E[i]:.2f}$\pm${self.dE[i]:.2f}'
+            else:
+                pass
             visuals.plot(x, self.amplitude[i], xlabel='x', title=title)
         elif x is not None:
             x1, x2 = self.x1(self.t), self.x2(self.t)

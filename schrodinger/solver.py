@@ -8,7 +8,7 @@ from . import wavefunction
 from . import utils
 
 
-def solve(psi0, t, x1, x2, V, BC, f=None, imag=False):
+def solve(psi0, t, x1, x2, V, BC, imag=False):
     """
     Solves the Schrödinger equation with time-dependent boundaries.
 
@@ -19,9 +19,7 @@ def solve(psi0, t, x1, x2, V, BC, f=None, imag=False):
         x2 (Callable[[float], float]): Function specifying the right boundary as a function of time.
         V (Callable[[float, np.ndarray[float]], np.ndarray[np.complex128]]): Potential energy function, 
             depends on time and spatial coordinates.
-        BC (str): Boundary condition, either 'periodic' or 'dirichlet'.
-        f (Optional[Callable[[float], Tuple[float, float]]]): Optional function specifying additional 
-            boundary dynamics. Default is None.
+        BC (str): Boundary condition, 'periodic', 'dirichlet' or 'pml'.
         imag (bool): Whether to perform the computation in imaginary time. Default is False.
 
     Returns:
@@ -32,55 +30,46 @@ def solve(psi0, t, x1, x2, V, BC, f=None, imag=False):
     Nt = len(t)
     Nx = len(psi0)
     psi = np.empty((Nt, Nx), dtype=np.complex128)
-    utils.check_bc(psi0, t[0], f)
+    utils.check_bc(psi0, BC)
     utils.check_bdry(t, x1, x2)
-    expT, up, up_t, up_xx = utils.boundaries(x1, x2, V, BC, f)
-
-    # Complexification of (t, x)
-    t += 0j
-    if imag:
-        t *= - 1j
+    N, dx, x, x_t, x_tt = utils.coords(x1, x2, Nx, BC)
     dt = np.concatenate(([0], np.diff(t)))
-    def x(t):
-        return np.linspace(x1(t), x2(t), Nx)+0j
+    if imag:
+        dt = -1j * dt
+
+   # Effective potential and momentum step
+    Veff = utils.compute_Veff(x, x_t, x_tt, x1, x2, V, BC)
+    expT = utils.compute_expT(x, x1, x2, N, BC)
 
     # Initial conditions
-    norm_2 = np.trapezoid(np.abs(psi0)**2, x(t[0]).real)
     psi[0, :] = psi0
-    uh = psi0 - up(t[0], x(t[0]))
-
-    # Inhomogeneous (boundary) terms
-    H_up = -1/2 * up_xx(t[0], x(t[0])) + V(t[0], x(t[0])) * up(t[0], x(t[0]))
-
-    # Energies
-    E, dE = [], []
-    E_i, dE_i = utils.energy(psi0, uh, H_up, x(t[0]), V(t[0], x(t[0])), norm_2, BC)
-    E.append(E_i)
-    dE.append(dE_i)
+    if BC == 'pml':
+        F = utils.stretch(x(t[0]), x1(t[0]), x2(t[0]))
+        scaling = np.exp(-1j * F * x_t(t[0]))
+        psi_i = utils.extrapolate(psi0, x(t[0]), x1(t[0]), x2(t[0]), Nx) * scaling
+    else:
+        scaling = np.exp(-1j * x(t[0]) * x_t(t[0]))
+        psi_i = psi0 * scaling
 
     # Integration loop
     for i in range(1, Nt):
-        # Inhomogeneous (boundary) terms, Euler step
-        H_up = -1/2 * up_xx(t[i], x(t[i])) + V(t[i], x(t[i])) * up(t[i], x(t[i]))
-        uh += -1j * dt[i] * (H_up - 1j*up_t(t[i], x(t[i])))
+        # Split operator step
+        psi_i *= np.exp(- .5j * dt[i] * Veff(t[i]))
+        psi_i  = expT(psi_i, t[i], dt[i], dx(t[i]))
+        psi_i *= np.exp(- .5j * dt[i] * Veff(t[i]))
 
-        # Homogeneous evolution, exponential integration
-        uh = uh * np.exp(- 1j * dt[i] * V(t[i], x(t[i])) / 2)
-        uh = expT(uh, dt[i], x(t[i]))
-        uh = uh * np.exp(- 1j * dt[i] * V(t[i], x(t[i])) / 2)
+        # Save data
+        if BC == 'pml':
+            F = utils.stretch(x(t[i]), x1(t[i]), x2(t[i]))
+            scaling = np.exp(-1j * F * x_t(t[i]))
+            psi[i, :] = (psi_i * scaling)[int(utils.D*Nx):-int(utils.D*Nx)]
+        else:
+            scaling = np.exp(1j * x(t[i]) * x_t(t[i]))
+            psi[i, :] = psi_i * scaling
 
-        # Normalisation
-        psi_i = uh + up(t[i], x(t[i]))
-        norm_2 = np.trapezoid(np.abs(psi_i)**2, x(t[i]).real)
-        psi[i, :] = psi_i
-
-        # Energies
-        E_i, dE_i = utils.energy(psi_i, uh, H_up, x(t[i]), V(t[i], x(t[i])), norm_2, BC)
-        E.append(E_i)
-        dE.append(dE_i)
-
-    if imag:
-        t *= 1j
-    t = t.real
-    sol = wavefunction.Wavefunction(psi, t, x1, x2, E, dE)
-    return sol
+    # Instruction to normalise in a closed domain
+    if BC == 'pml':
+        closed = False
+    else:
+        closed = True
+    return wavefunction.Wavefunction(psi, t, x1, x2, V, closed=closed)
