@@ -67,9 +67,4 @@ def solve(psi0, t, x1, x2, V, BC, imag=False):
             scaling = np.exp(1j * x(t[i]) * x_t(t[i]))
             psi[i, :] = psi_i * scaling
 
-    # Instruction to normalise in a closed domain
-    if BC == 'pml':
-        closed = False
-    else:
-        closed = True
-    return wavefunction.Wavefunction(psi, t, x1, x2, V, closed=closed)
+    return wavefunction.Wavefunction(psi, t, x1, x2, V, BC)

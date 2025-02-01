@@ -1,5 +1,5 @@
 """
-utils.py: Helper functions for solver.py.
+utils.py: Helper numerical functions for solver.py and wavefunction.py.
 """
 
 import numpy as np
@@ -18,24 +18,28 @@ ATOL = 1e-8
 
 # PML PARAMETERS
 G  = jnp.pi / 4     # Absorption coefficient exp(1j*G)
-S0 = 0             # Absorption strength factor
-D  = .1            # Absorbing layer depth / solution domain
+S0 = 0              # Absorption strength factor
+D  = .1             # Absorbing layer depth / solution domain
 
-# NOISE THRESHOLD (For derivatives)
-F = .99                     # Fraction of power spectrum we keep
+# NOISE THRESHOLD (for derivatives)
+F = .9995           # Fraction of power spectrum we keep
 
 
 def check_bc(psi0, BC, rtol=RTOL, atol=ATOL):
     '''Checks whether boundary conditions are initially satisfied or not.'''
 
     if BC == 'periodic':
-        if not jnp.isclose(psi0[0], psi0[-1], rtol, atol):
+        if not np.isclose(psi0[0], psi0[-1], rtol, atol):
             raise ValueError(f'Periodic bdry. cond. not satisfied with rtol={rtol:.2e}, atol={atol:.2e}.')
     elif BC == 'dirichlet':
-        if not jnp.isclose(psi0[0], 0, rtol, atol):
+        if not np.isclose(psi0[0], 0, rtol, atol):
             raise ValueError(f'Left bdry. cond. not satisfied with rtol={rtol:.2e}, atol={atol:.2e}.')
-        if not jnp.isclose(psi0[-1], 0, rtol, atol):
+        if not np.isclose(psi0[-1], 0, rtol, atol):
             raise ValueError(f'Right bdry. cond. not satisfied with rtol={rtol:.2e}, atol={atol:.2e}.')
+    elif BC == 'pml':
+        pass
+    else:
+        raise ValueError('Boundaries must be "periodic", "dirichlet" or "pml".')
 
 
 def check_bdry(t, x1, x2):
@@ -43,14 +47,15 @@ def check_bdry(t, x1, x2):
 
     L = x2(t) - x1(t)
     cond = L < 0
-    if jnp.any(cond):
-        i = jnp.argmax(cond)
+    if np.any(cond):
+        i = np.argmax(cond)
         raise ValueError(f'Boundary definition fails for t={t[i]:.2f}, negative domain length.')
 
 
 def coords(x1, x2, Nx, BC):
     '''Meshes for x and its derivatives.'''
 
+    @jit
     def dx(t):
         return (x2(t) - x1(t)) / (Nx - 1)
     if BC == 'pml':
@@ -159,20 +164,21 @@ def compute_expT(x, x1, x2, Nx, BC):
         return expT
 
 
-def cutoff_periodic(wf_f, k, fraction=F):
-    '''Noise threshold.'''
+@jit
+def cutoff_periodic(psi_f, k, fraction=F):
+    '''Frequency noise threshold for periodic BC.'''
 
     n = len(k)
 
     k_neg   = k[-1:n//2+n%2-1:-1]
-    f_neg   = wf_f[-1:n//2+n%2-1:-1]
+    f_neg   = psi_f[-1:n//2+n%2-1:-1]
     pow_neg = jnp.abs(f_neg)**2
     cum_neg = jnp.cumsum(pow_neg) / jnp.sum(pow_neg)
     i = jnp.argmax(cum_neg >= fraction)
     kmin = k_neg[i]
 
     k_pos   = k[:n//2+n%2]
-    f_pos   = wf_f[:n//2+n%2]
+    f_pos   = psi_f[:n//2+n%2]
     pow_pos = jnp.abs(f_pos)**2
     cum_pos = jnp.cumsum(pow_pos) / jnp.sum(pow_pos)
     i = jnp.argmax(cum_pos >= fraction)
@@ -181,20 +187,40 @@ def cutoff_periodic(wf_f, k, fraction=F):
     return kmin, kmax
 
 
-def cutoff_dirichlet(wf_f, k, fraction=F):
-    '''Noise threshold for dirichlet BC.'''
+@jit
+def cutoff_dirichlet(psi_f, k, fraction=F):
+    '''Frequency noise threshold for dirichlet BC.'''
 
-    power = jnp.abs(wf_f)**2
+    power = jnp.abs(psi_f)**2
     cumulative_power = jnp.cumsum(power) / jnp.sum(power)
     i = jnp.argmax(cumulative_power >= fraction)
+
     return k[i]
 
 
-def energy(psi, x, V):
+def energy(psi, x, V, BC):
     '''Average energy and standard deviation.'''
 
-    Nt, Nx = psi.shape
-    E = np.zeros(Nt)
-    dE = np.zeros(Nt)
+    Nx = len(x)
+    dx = np.diff(x)[0]
+    if BC == 'periodic':
+        k = 2 * np.pi * fft.fftfreq(Nx, dx)
+        psi_f = fft.fft(psi)
+        kmin, kmax = cutoff_periodic(psi_f, k)
+        k_filter = (k >= kmin) * (k <= kmax)
+        T_psi_f = k**2/2 * psi_f * k_filter
+        T_psi = fft.ifft(T_psi_f)
+        H_psi = T_psi + V * psi
+    elif BC == 'dirichlet':
+        k = np.pi * np.arange(1, Nx + 1) / (Nx * dx)
+        psi_f = fft.dst(psi, type=1)
+        kc = cutoff_dirichlet(psi_f, k)
+        k_filter = k <= kc
+        T_psi_f = k**2/2 * psi_f * k_filter
+        T_psi = fft.idst(T_psi_f, type=1)
+        H_psi = T_psi + V * psi
+    E  = np.trapezoid(psi.conj()*H_psi, x).real
+    E2 = np.trapezoid(np.abs(H_psi)**2, x).real
+    dE = np.sqrt(max(0, E2 - E**2))
 
     return E, dE

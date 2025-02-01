@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from collections.abc import Callable
 
 from jax import vmap
+import jax.numpy as jnp
 import numpy as np
 
 from . import visuals
@@ -20,18 +21,23 @@ class Wavefunction:
     x1:        Callable[[float], float]
     x2:        Callable[[float], float]
     V:         Callable[[float, np.ndarray], np.ndarray]
-    closed:    bool = True
+    BC:        str
 
     def __post_init__(self):
-        x = self._x(self.t)
-        V = self.V(self.t, x)
-        if self.closed:
-            self._normalize()
-            self.E, self.dE = utils.energy(self.amplitude, x, V)
+        norm_2 = np.trapezoid(np.abs(self.amplitude)**2, self._x(self.t), axis=1)
+        norm = np.sqrt(norm_2)
+        if self.BC == 'pml':
+            self.amplitude = self.amplitude / np.max(norm)
+            self.P = norm / np.max(norm)
+        else:
+            self.amplitude = self.amplitude / norm[:, np.newaxis]
+            energies = [utils.energy(self.amplitude[i], self._x([t]), self.V(t, self._x([t])), self.BC) for i, t in enumerate(self.t)]
+            self.E, self.dE = list(zip(*energies))
 
     def _x(self, t):
         Nx = self.amplitude.shape[1]
-        return np.linspace(vmap(self.x1)(t), vmap(self.x2)(t), Nx).T
+        t = jnp.array(t)
+        return np.squeeze(np.linspace(vmap(self.x1)(t), vmap(self.x2)(t), Nx).T)
 
     def _normalize(self):
         norm_2 = np.trapezoid(np.abs(self.amplitude)**2, self._x(self.t), axis=1)
@@ -47,10 +53,10 @@ class Wavefunction:
                 raise ValueError(f"'t' value outside of range [{self.t[0]:.2f}, {self.t[-1]:.2f}]")
             i = np.argmin(np.abs(self.t - t))
             x = np.linspace(self.x1(self.t[i]), self.x2(self.t[i]), Nx)
-            if self.closed:
-                title = rf't={self.t[i]:.2f}, E={self.E[i]:.2f}$\pm${self.dE[i]:.2f}'
+            if self.BC == 'pml':
+                title = rf't={self.t[i]:.2f}, P={self.P[i]:.2f}'
             else:
-                pass
+                title = rf't={self.t[i]:.2f}, E={self.E[i]:.2f}$\pm${self.dE[i]:.2f}'
             visuals.plot(x, self.amplitude[i], xlabel='x', title=title)
         elif x is not None:
             x1, x2 = self.x1(self.t), self.x2(self.t)

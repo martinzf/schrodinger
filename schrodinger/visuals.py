@@ -144,9 +144,9 @@ def animate_wf(wf):
         update_colored_line(lc, x, wf.amplitude[i])
         update_fill(left_shade, [xmin, x[0]], [0, 0], [ymax, ymax])
         update_fill(right_shade, [x[-1], xmax], [0, 0], [ymax, ymax])
-        if wf.closed:
-            title.set_text(rf't={wf.t[i]:.2f}, E={wf.E[i]:.2f}$\pm${wf.dE[i]:.2f}')
+        if wf.BC == 'pml':
+            title.set_text(rf't={wf.t[i]:.2f}, P={wf.P[i]:.2f}')
         else:
-            pass
+            title.set_text(rf't={wf.t[i]:.2f}, E={wf.E[i]:.2f}$\pm${wf.dE[i]:.2f}')
         return lc, left_shade, right_shade, title,
     return animation.FuncAnimation(fig, fun, frames=Nt, interval=50, blit=True)
